@@ -1,0 +1,10 @@
+# wxmp bundle layer: 注册模型工具 `wxmp`，同时由 client.js 提供左侧栏入口与三栏工作台。
+# cliPath 留空时自动定位 ../bin/wxmp.js；stateDir 留空则用 CLI 自己的目录
+# （%LOCALAPPDATA%\wxmp，不可写退回 <cwd>\.wxmp）。
+- insert:
+    - id: wxmp
+      name: '@local/wxmp'
+      config:
+        cliPath: ''
+        stateDir: ''
+        timeoutMs: 120000
