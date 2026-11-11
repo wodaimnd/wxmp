@@ -1,6 +1,6 @@
 {
   "name": "@local/wxmp",
-  "version": "0.1.0",
+  "version": "1.7.7",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -8,12 +8,16 @@
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
-    "./locale/*.json": "./locale/*.json"
+    "./icon": "./icon.svg",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
   },
   "files": [
     "index.js",
     "client.js",
     "ui-backend.js",
+    "logger.js",
+    "icon.svg",
     "cordis.patch.yml",
     "locale/*.json",
     "README.md",
@@ -38,6 +42,17 @@
     "client": {
       "platform": "web",
       "immediately": true
+    },
+    "forge": {
+      "source": "local:G:/AI PGRM/DSH/wxmp/dsh-plugin",
+      "effects": [
+        "fs:read:插件所在目录（含本包 package.json 用于取版本号）、bin/wxmp.js CLI 入口探测、<stateDir>/logs（每次调用读回自己的 call-*.log：index.js 解析 CLI 的 JSON 结果；面板「最近日志」tail 读 plugin.log：logger.js）、<stateDir>/articles 文章目录（GET /api/wxmp/cover 取封面图、面板统计底图数量时也读这里）",
+        "fs:write:<stateDir>/logs（每次调用日志 + plugin.log + mount-state.json）、<stateDir>/articles front matter 回写、<stateDir>/articles/bg-*.png 封面底图（面板上传的底图，只保留最近 20 个）、<stateDir>/tmp 临时输出（导入预设时的 preset-import-*.json）；<stateDir>/previews 不在此列——预览是 CLI 子进程自己写的，判据：本声明只记宿主半 JS 自己持有的读写点，CLI 自身产物由 child:node 那条覆盖",
+        "fs:delete:<stateDir>/logs 下 plugin.log 及轮转文件、残留 call-*.log（「清除本插件数据」op clear-plugin-data 删；正常路径下每次调用读完自己的 call-*.log 也当场删）、<stateDir>/articles 下超额的旧封面底图 bg-*（上传新底图时裁剪到最近 20 个）、<stateDir>/articles 下用户主动删除的单篇文章 .md（op article-delete，只认 .md，路径收敛在文章目录内，删前 stat 校验）、<stateDir>/tmp 下 preset-import-*.json 临时文件（导入预设用完即删）；不动 config.json 与 mount-state.json",
+        "net:loopback:POST /api/wxmp（精确路由，白名单 op，拒绝非回环来源）、GET /api/wxmp/cover（前缀路由，取封面图，同样只允许回环）；外呼只由 CLI 走 api.weixin.qq.com，凭据在本机配置文件里",
+        "child:node bin/wxmp.js（串行队列，逐次可设超时；写类调用超时不自动重试，停用插件时统一 kill）",
+        "env:read:WXMP_HOME / WXMP_CLI_JS / LOCALAPPDATA"
+      ]
     }
   },
   "repository": {

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "公众号文章工作台",
+    "title": "WeChat Article Workbench",
     "description": "Write and publish WeChat Official Account articles inside DSH: Markdown authoring, automatic inlined WeChat styling, cover generation, draft box, one-click publish. Adds a left-sidebar entry that opens a three-column workbench — article list, preview, and checks/publish pipeline."
   }
 }
