@@ -4,6 +4,8 @@
 
 公众号文章工作台：在 DSH 里写稿、排版、生成封面、建草稿并发布到微信公众号。模型侧提供 wxmp 工具，界面侧提供三栏工作台（文章列表 / 预览 / 发布流水线）。
 
+人读版使用说明见 [使用说明.md](使用说明.md)；命令与打分预设（1.8.0 起预设即写作提示词）的完整参考见 [skills/wxmp/SKILL.md](skills/wxmp/SKILL.md)。
+
 ![version](https://img.shields.io/badge/version-1.8.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![DSH Web UI](https://img.shields.io/badge/DSH-Web%20UI-8b5cf6)
 
 ## 功能特性 / Features
