@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
     // F10: version-single-source —— 这不是「显示的版本」，只是后端拿不到 health 时的离线兜底值。
     // 面板显示一律走 resolveVersion(health)：后端在线时取 health.version，于是
     // package.json / index.js / 面板三处一旦不一致，界面会当场显示后端那个值（不再是硬编码的活值）。
-    const FALLBACK_VERSION = '1.8.0'
+    const FALLBACK_VERSION = '1.8.1'
     /**
      * F10：版本号只有一个真相 —— 后端 health 载荷的 version 字段（ui-backend.js 的 health case
      * 从 createUiHandler 的 version 参数回传，index.js 传的是 package.json 里的真实值）。
@@ -2370,6 +2370,30 @@ window.__ModuleLoader__.load({
                             ? '（封面没变就复用它，不会重复上传）'
                             : '（下次建草稿/更新会新建一条永久素材）'),
                       ),
+                      /* 1.8.1：本地文件路径常驻行。以前路径只在生成预览后的 toast 里
+                       * 闪一次，想去改 .md 只能凭记忆猜目录；现在每篇都钉在卡片上，
+                       * 点一下复制全路径（含文件名），直接粘进编辑器/命令行都行。
+                       * 路径来自 article-show 的 articleSummary（data.article.article.path）。 */
+                      h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 11.5, color: '#999', marginBottom: 12 } },
+                        h('span', { style: { color: '#888', flexShrink: 0 } }, '文件路径'),
+                        h('span', {
+                          style: {
+                            color: '#666', fontFamily: 'Consolas, Menlo, monospace', fontSize: 11,
+                            wordBreak: 'break-all', cursor: article.path ? 'pointer' : 'default', flex: 1, minWidth: 0,
+                          },
+                          title: article.path ? `点击复制完整路径：${article.path}` : '路径未知（文章可能还没保存过）',
+                          onClick: async () => {
+                            if (!article.path) return
+                            try {
+                              await navigator.clipboard.writeText(article.path)
+                              notify('文件路径已复制', 'ok', 2200)
+                            } catch {
+                              // 复制失败（http 页面/权限拒绝）不静默：路径就钉在面板上，指个路
+                              notify('浏览器拒绝了复制权限 —— 路径就在「文件路径」一行，手动选中复制即可', 'warn', 6000)
+                            }
+                          },
+                        }, article.path || '（未知）'),
+                      ),
                       // 正文：显示真实字数 + 开头一段，不再显示「正文 0 字符」这种骗人数据
                       h('div', { style: { color: '#666', fontSize: 12, marginBottom: 8 } },
                         `正文 ${article.bodyChars != null ? article.bodyChars : String(article.body || '').length} 字符 · 主题 ${article.theme || 'default'}`),
@@ -2377,26 +2401,47 @@ window.__ModuleLoader__.load({
                         ? h('div', { style: { fontSize: 12.5, color: '#444', lineHeight: 1.85, whiteSpace: 'pre-wrap', maxHeight: 180, overflowY: 'auto' }, className: 'wxmp-scroll' },
                             article.body.slice(0, 600) + (article.body.length > 600 ? '\n…' : ''))
                         : null,
-                      h('div', { style: { marginTop: 12, color: '#999', fontSize: 11.5 } }, '完整排版点下方「打开本地预览」在新标签查看。'),
+                      h('div', { style: { marginTop: 12, color: '#999', fontSize: 11.5 } }, '完整排版点下方「🌐 打开本地预览」，生成后自动在默认浏览器打开；要改稿子用「📄 打开文件」。'),
                     ),
                   )
                 : h('div', { style: { color: C.label3, fontSize: 12, padding: '20px 0' } }, '左边选一篇文章就能看到预览。'),
             selected && article
-              ? h('div', { style: { marginTop: 12 } },
+              ? h(
+                  'div',
+                  { style: { marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+                  // 1.8.1：open:true → 后端给 CLI 追加 --open，HTML 生成后直接默认浏览器打开，
+                  // 不再「只生成、路径一闪而过」。
                   h('button', {
                     type: 'button',
                     className: 'wxmp-btn wxmp-focus',
                     // W5-R2：预览钮原来没有 disabled，进行中重复点会被静默丢弃（只有 notify 兜底）。
                     // 补上 disabled；minWidth 让「正在生成…」比「打开本地预览」短时不跳宽度。
-                    style: { ...btn('normal'), minWidth: 118 },
+                    style: { ...btn('primary'), minWidth: 150 },
                     disabled: Boolean(busy),
                     onClick: async () => {
-                      const outcome = await runAction('preview', 'preview-article', { file: selected }, 'article preview')
+                      const outcome = await runAction('preview', 'preview-article', { file: selected, open: true }, 'article preview --open')
                       if (outcome && outcome.ok && outcome.data && outcome.data.path) {
-                        notify(`预览已生成：${outcome.data.path}`, 'ok', 5000)
+                        notify(`预览已生成并在浏览器打开：${outcome.data.path}`, 'ok', 5000)
                       }
                     },
-                  }, busy === 'preview' ? '正在生成…' : '打开本地预览'))
+                  }, busy === 'preview' ? '正在生成…' : '🌐 打开本地预览'),
+                  // 快捷打开三兄弟的后两个：文件夹用资源管理器定位（explorer /select），
+                  // 文件交给系统默认 .md 程序。判定与打开都在后端（open-article 本地 op）。
+                  h('button', {
+                    type: 'button',
+                    className: 'wxmp-btn',
+                    style: btn('normal'),
+                    disabled: Boolean(busy),
+                    onClick: () => runAction('open-folder', 'open-article', { file: selected, what: 'folder' }, 'open-article（所在文件夹）'),
+                  }, busy === 'open-folder' ? '正在打开…' : '📂 所在文件夹'),
+                  h('button', {
+                    type: 'button',
+                    className: 'wxmp-btn',
+                    style: btn('normal'),
+                    disabled: Boolean(busy),
+                    onClick: () => runAction('open-file', 'open-article', { file: selected, what: 'file' }, 'open-article（打开文件）'),
+                  }, busy === 'open-file' ? '正在打开…' : '📄 打开文件'),
+                )
               : null,
           ),
 

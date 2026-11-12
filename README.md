@@ -6,7 +6,7 @@
 
 人读版使用说明见 [使用说明.md](使用说明.md)；命令与打分预设（1.8.0 起预设即写作提示词）的完整参考见 [skills/wxmp/SKILL.md](skills/wxmp/SKILL.md)。
 
-![version](https://img.shields.io/badge/version-1.8.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![DSH Web UI](https://img.shields.io/badge/DSH-Web%20UI-8b5cf6)
+![version](https://img.shields.io/badge/version-1.8.1-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![DSH Web UI](https://img.shields.io/badge/DSH-Web%20UI-8b5cf6)
 
 ## 功能特性 / Features
 
@@ -49,6 +49,9 @@ wxmp/
 ├── index.js              # Host 半边
 ├── client.js             # 浏览器半边
 ├── cordis.patch.yml      # bundle 行声明
+├── CHANGELOG.md
+├── 使用说明.md            # 人读版：界面与操作步骤
+├── skills/wxmp/          # 随包分发的 Agent 技能文档
 ├── LICENSE
 └── README.md
 ```

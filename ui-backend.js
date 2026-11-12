@@ -15,6 +15,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { spawn } from 'node:child_process'
 
 export const ROUTE = '/api/wxmp'
 /** 图片供应商 id 清单：清空 key 时逐家删除要用。
@@ -91,6 +92,8 @@ export const UI_OPERATIONS = [
   'preset-remove',
   'preset-reset',
   'preview-article',
+  // 1.8.1：快捷打开（📄 打开文件 / 📂 所在文件夹）。本地 op，不落 argv。
+  'open-article',
   'new-article',
   'write-article',
   // task-8：删除本地文章。CLI 没有 `article delete` 子命令，删除由宿主半自己做 fs 删除，
@@ -228,7 +231,24 @@ export function buildUiArgv(op, params = {}) {
       // 体检：面板也能看分数与带行号的改法（不带 --min-score，看分数不需要判失败）
       return { argv: ['article', 'review', '--file', str(p.file)], kind: 'review', needFile: true }
     case 'preview-article':
-      return { argv: ['article', 'preview', '--file', str(p.file)], kind: 'preview', needFile: true }
+      // 1.8.1：open:true → CLI --open，生成后直接用默认浏览器打开（快捷预览）。
+      // 原来只生成不打开，路径只在 notify 里闪一下；现在一步到位。
+      return {
+        argv: ['article', 'preview', '--file', str(p.file), ...(p.open === true ? ['--open'] : [])],
+        kind: 'preview',
+        needFile: true,
+      }
+    // 1.8.1：快捷打开（📄 打开文件 / 📂 所在文件夹）。与 article-delete 同款本地 op：
+    // argv 为空 + local:true，判定与打开动作在 handler 的 spec.openArticle 分支做 ——
+    // 「先收敛路径再打开」需要 fs 与 realpath，套不进这里的 argv 拼装。
+    // what 只认 file | folder；缺省按 file（打开 .md 本身）。
+    case 'open-article':
+      return {
+        argv: [],
+        kind: 'articleOpened',
+        local: true,
+        openArticle: { what: p.what === 'folder' ? 'folder' : 'file' },
+      }
     case 'list-drafts':
       return { argv: ['draft', 'list', '--count', str(p.count || 20)], kind: 'drafts' }
     case 'list-published':
@@ -598,6 +618,94 @@ export function deleteArticleFile(articleDirPath, requested, opts = {}) {
   }
 }
 
+/**
+ * 1.8.1：系统层「打开」的默认实现（进程里 fire-and-forget，不等待、不接输出）。
+ * file → 交给系统默认程序（编辑器）；folder → 资源管理器定位并选中该文件。
+ * Windows 的 `explorer /select,"路径"` 必须把逗号和路径连在一个参数里才可靠；
+ * spawn 的参数数组保证路径不会被 shell 再拆一次。
+ */
+export function defaultShellOpen(target, what) {
+  try {
+    let command = ''
+    let args = []
+    if (process.platform === 'win32') {
+      if (what === 'folder') {
+        command = 'explorer.exe'
+        args = ['/select,', target]
+      } else {
+        command = 'cmd.exe'
+        args = ['/c', 'start', '', target]
+      }
+    } else if (process.platform === 'darwin') {
+      command = 'open'
+      args = what === 'folder' ? ['-R', target] : [target]
+    } else {
+      command = 'xdg-open'
+      args = [what === 'folder' ? path.dirname(target) : target]
+    }
+    const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true })
+    child.unref()
+  } catch {
+    /* 打不开就算了：回执里已带回路径，用户可以自己进文件夹 */
+  }
+}
+
+/**
+ * 1.8.1：快捷打开本地文章的**唯一实现**（与 deleteArticleFile 同款「唯一实现」范式）。
+ *
+ * 面板路径（handler 的 `spec.openArticle` 分支）只有这一个入口，判定顺序照抄删除链：
+ * 缺参 → 路径收敛（只 .md、含 realpath 拦软链）→ 交给 shellOpen。
+ * shellOpen 由调用方注入（测试用记录器，绝不真弹窗口）；默认 defaultShellOpen。
+ * 返回 { ok, exitCode, data, text }；失败带顶层 error / code / hint（runAction 按顶层读）。
+ */
+export function openArticleFile(articleDirPath, requested, opts = {}) {
+  const { what = 'file', shellOpen = defaultShellOpen, logLocalOp = null, op = 'open-article' } = opts
+  const nameForLog = typeof requested === 'string' && requested ? path.basename(requested) : ''
+  const logOpen = (record) => {
+    try {
+      if (typeof logLocalOp === 'function') logLocalOp({ op, ...record })
+    } catch {
+      /* 日志回调自己保证不抛；这里只是最后一道防线 */
+    }
+  }
+  const fail = (code, errorText, hint) => {
+    logOpen({ ok: false, file: nameForLog, code, error: errorText, hint })
+    return {
+      ok: false,
+      exitCode: 1,
+      error: errorText,
+      code,
+      hint,
+      data: { error: { code, message: errorText }, hint },
+      text: `${code}: ${errorText}（${hint}）`,
+    }
+  }
+
+  let target = ''
+  try {
+    target = resolveInsideArticleDir(articleDirPath, requested, { requireRealpath: true })
+  } catch (error) {
+    const code = (error && error.code) || 'article_path_invalid'
+    const text = (error && error.message) || '路径不合法'
+    const hint =
+      code === 'article_not_md'
+        ? '只能打开 .md 文章文件'
+        : code === 'article_not_found'
+          ? '文件可能已被删除或移动，刷新列表后重试'
+          : '只能打开文章目录内的 .md 文件，请从文章列表里选择'
+    return fail(code, text, hint)
+  }
+
+  shellOpen(target, what)
+  logOpen({ ok: true, file: nameForLog, what })
+  return {
+    ok: true,
+    exitCode: 0,
+    data: { path: target, what },
+    text: what === 'folder' ? `已在资源管理器中显示：${nameForLog}` : `已打开：${nameForLog}`,
+  }
+}
+
 export function createUiHandler({ runCli, articleDir, version = PKG_VERSION, health = null, logTail = null, logFile = null, stateDir = '', clearData = null, logLocalOp = null }) {
   return async function handle(req, res) {
     if (!loopback(req)) return send(res, 403, { ok: false, error: { code: 'forbidden', message: '只允许本机访问' } })
@@ -776,6 +884,21 @@ export function createUiHandler({ runCli, articleDir, version = PKG_VERSION, hea
         // 都调 deleteArticleFile，两条路径的返回结构与错误码天然一致。
         // 对外契约不变：失败仍给顶层 { ok:false, error, code, hint }，成功仍只回 basename。
         return send(res, 200, deleteArticleFile(articleDir, (body.params || {}).file, { logLocalOp, op }))
+      }
+
+      // 1.8.1：快捷打开（📄 打开文件 / 📂 所在文件夹）。
+      // 判定链与删除同一条（resolveInsideArticleDir + realpath），打开动作交给
+      // openArticleFile 的注入实现——面板进程只 fire-and-forget，不等待 shell 返回。
+      if (spec.openArticle) {
+        return send(
+          res,
+          200,
+          openArticleFile(articleDir, (body.params || {}).file, {
+            what: spec.openArticle.what,
+            logLocalOp,
+            op,
+          }),
+        )
       }
 
       // 清空所有图片 key：通过 CLI 逐家删除（- 表示删除）。
