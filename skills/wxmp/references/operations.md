@@ -1,4 +1,4 @@
-# operation 全表（40 个）
+# operation 全表（42 个）
 
 `*` 必填；`a|b` 表示两个都接受的别名；不写就用默认值。
 返回统一是 `{ ok, exitCode, data, text }`——`text` 已截断到 4000 字符，需要精确值时读 `data`。
@@ -24,7 +24,7 @@
 |---|---|---|
 | `article_new` | `title*`、`author?`、`theme?`、`cover?`、`force?` | `path`、`title`、`theme` |
 | `article_import` | `url?`、`list?`（二选一） | `total`、`imported`、`failed`、`results[]{ok,url,file,title,chars}` |
-| `article_brief` | `topic?`、`file?`、`form?`、`words?`、`audience?`、`angle?`、`preset?` | `topic`、`form`、`formLabel`、`words`、`markdown` |
+| `article_brief` | `topic?`、`file?`、`form?`、`words?`、`audience?`、`angle?`、`preset?` | `topic`、`form`、`formLabel`、`words`、`markdown`、`preset{id,name,hasStyle}`（任务书内嵌该预设的风格节） |
 | `article_outline` | `file?`、`form?` | 骨架 + 现有小标题的对应关系 |
 | `article_titles` | `file?`、`titles?`、`brief?` | `current`、`material`、`candidates[]`、`brief`；给 `titles` 时返回 `scored[]` |
 | `article_list` | — | `dir`、`articles[]{name,path,title,mediaId,updated,size}` |
@@ -36,7 +36,6 @@
 | `article_library` | `check?`、`guide?`、`audit?`、`usable?` | `total`、`untagged`、`usable[]`、`items[]` |
 | `article_illustrate` | `file?`、`max?`、`apply?` | `suggestions[]{image,section,afterParagraph,reason,hits}`、`applied` |
 | `article_preview` | `file?`、`out?`、`open?` | 本地 HTML 预览路径 |
-| `article_delete` | `file*` | `file`（basename）、`bytes`（删前字节数）；**只删本地 .md**，微信草稿不动 |
 
 - **`article_import` 是"已经在线的文章"的入口。** 同名文件不覆盖，自动加 `-2` / `-3`；
   批量时单篇失败不中断，`results` 里逐条给原因。`list` 是一行一个链接的文本文件，
@@ -46,27 +45,16 @@
 - **`article_illustrate` 默认只建议。** 插图会改文章结构，`apply: true` 才真写盘；
   写盘失败报 `apply_failed`（exit 3），文件不动。
 - 写命令（`set_title` / `set_author`）的 `file` **必填**，不会回落到「最近改过的那篇」。
-- **`article_delete` 是本地操作，不走 CLI。** 判定顺序是：缺参 → 路径收敛（含 realpath，
-  目录内的软链指向目录外也拦）→ `statSync` 存在且是普通文件 → 才真删。失败给稳定短码，
-  按码分诊：
-
-  | code | 触发 | 下一步 |
-  |---|---|---|
-  | `article_missing_arg` | 没给 `file` | 传文件名（文章目录内的 .md） |
-  | `article_path_invalid` | 想删文章目录外的文件（含软链绕道、绝对路径） | 从文章列表里选一篇 |
-  | `article_not_md` | 不是 `.md`（如 `bg-x.png`）或目标是目录 | 只删 .md；换封面底图走封面设置 |
-  | `article_not_found` | 文件已不在（或被移走） | 刷新文章列表后重试 |
-  | `article_delete_failed` | 读取或删除被占用 / 权限拒绝 | 关掉占用它的编辑器或预览窗口后重试 |
-
-  **删的是本地文件，微信后台不受影响**：草稿还在草稿箱，已发布内容也不会撤回 ——
-  要删草稿用 `draft_delete`（`mediaId`），要删已发布内容用 `publish_delete`。
 
 ## 预设
 
+预设 = 打分标准 + 写作提示词。`style` 存的是风格文案（怎么写），`thresholds/weights` 存的是打分线（写完怎么量）。动笔前先 `article_preset_prompt` 拿提示词，写完再 `article_review` 量分。
+
 | operation | params | `data` 里要看的字段 |
 |---|---|---|
-| `article_presets` | — | `root`、`current`、`presets[]` |
-| `article_preset_show` | `id*` | `preset{thresholds,weights}`、`notes[]` |
+| `article_presets` | — | `root`、`current`、`presets[]`（带 style.md 的预设标有风格提示词） |
+| `article_preset_show` | `id*` | `preset{thresholds,weights,style}`、`notes[]` |
+| `article_preset_prompt` | `id?`（不传=当前预设） | `id`、`name`、`hasStyle`、`prompt`（完整写作提示词：风格正文+节奏参考） |
 | `article_preset_use` | `id*` | `current`（写进 config，之后 review 默认用它） |
 | `article_preset_export` | `id*`、`out?` | `id`、`out`、`bytes`；不给 `out` 时 JSON 在 `data.json` |
 | `article_preset_import` | `file*`、`as?`、`force?` | `id`、`dir`、`preset`、`warnings[]` |

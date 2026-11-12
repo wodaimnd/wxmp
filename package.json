@@ -1,6 +1,6 @@
 {
   "name": "@local/wxmp",
-  "version": "1.7.7",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -21,6 +21,7 @@
     "cordis.patch.yml",
     "locale/*.json",
     "README.md",
+    "CHANGELOG.md",
     "skills"
   ],
   "peerDependencies": {

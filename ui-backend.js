@@ -83,6 +83,8 @@ export const UI_OPERATIONS = [
   'save-background',
   'preset-list',
   'preset-show',
+  // 1.8.0：预设 → 写作提示词（面板「复制写作提示词」按钮用）
+  'preset-prompt',
   'preset-use',
   'preset-export',
   'preset-import',
@@ -437,6 +439,12 @@ export function buildUiArgv(op, params = {}) {
       return { argv: ['article', 'preset', 'list'], kind: 'presetList' }
     case 'preset-show':
       return { argv: ['article', 'preset', 'show', str(p.id)], kind: 'presetShown' }
+    case 'preset-prompt':
+      // id 可选：不传就用当前生效的预设（CLI 侧 currentPresetId 兜底）
+      return {
+        argv: ['article', 'preset', 'prompt', ...(p.id ? [str(p.id)] : [])],
+        kind: 'presetPrompt',
+      }
     case 'preset-use':
       // 面板点「用这个标准」——写进 config.json，之后 CLI/工具/面板都按它打分
       return { argv: ['article', 'preset', 'use', str(p.id)], kind: 'presetUsed' }

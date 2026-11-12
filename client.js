@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
     // F10: version-single-source —— 这不是「显示的版本」，只是后端拿不到 health 时的离线兜底值。
     // 面板显示一律走 resolveVersion(health)：后端在线时取 health.version，于是
     // package.json / index.js / 面板三处一旦不一致，界面会当场显示后端那个值（不再是硬编码的活值）。
-    const FALLBACK_VERSION = '1.7.7'
+    const FALLBACK_VERSION = '1.8.0'
     /**
      * F10：版本号只有一个真相 —— 后端 health 载荷的 version 字段（ui-backend.js 的 health case
      * 从 createUiHandler 的 version 参数回传，index.js 传的是 package.json 里的真实值）。
@@ -611,6 +611,8 @@ window.__ModuleLoader__.load({
       const [presets, setPresets] = useState([])
       const [currentPreset, setCurrentPreset] = useState('')
       const [presetsBusy, setPresetsBusy] = useState(false)
+      // 1.8.0：剪贴板不可用时的兜底——把写作提示词全文显示在浮窗里让用户手动复制
+      const [promptPreview, setPromptPreview] = useState(null)
       const [reviewReport, setReviewReport] = useState(null)
       const [reviewBusy, setReviewBusy] = useState(false)
       const [reviewErr, setReviewErr] = useState(null)
@@ -1414,8 +1416,41 @@ window.__ModuleLoader__.load({
         }
       }, [notify, presets, runReview])
 
-      const exportCurrentPreset = useCallback(async () => {
-        if (!currentPreset) return
+      /* 1.8.0 preset-prompt-copy：把当前预设拼成完整写作提示词复制到剪贴板。
+         预设的第一身份是写作提示词——这份文本直接交给 AI 当写作指令，
+         稿子自然长在这套标准的节奏上，review 只是写完后的复核。
+         剪贴板不可用时（http 页面/权限拒绝）不静默：全文显示在浮窗里手动复制。 */
+      const copyPresetPrompt = useCallback(async (id) => {
+        const target = id || currentPreset
+        if (!target) return
+        setPresetsBusy(true)
+        try {
+          const outcome = toOutcome(await api('preset-prompt', { id: target }))
+          if (!aliveRef.current) return
+          if (!outcome.ok) {
+            notify(outcome.error.message, 'err', 5000)
+            return
+          }
+          const prompt = (outcome.data && outcome.data.prompt) || ''
+          if (!prompt) {
+            notify('提示词是空的（预设可能坏了，跑一次「恢复内置」试试）', 'warn', 5000)
+            return
+          }
+          const name = (outcome.data && outcome.data.name) || target
+          try {
+            await navigator.clipboard.writeText(prompt)
+            notify(`已复制「${name}」的写作提示词 —— 交给 AI 当写作指令`, 'ok', 6000)
+          } catch {
+            setPromptPreview({ name, text: prompt })
+          }
+        } catch (error) {
+          if (aliveRef.current) notify((error && error.message) || '操作失败', 'err', 5000)
+        } finally {
+          if (aliveRef.current) setPresetsBusy(false)
+        }
+      }, [currentPreset, notify])
+
+      const exportCurrentPreset = useCallback(async () => {        if (!currentPreset) return
         setPresetsBusy(true)
         try {
           const outcome = toOutcome(await api('preset-export', { id: currentPreset }))
@@ -2898,7 +2933,40 @@ window.__ModuleLoader__.load({
                     (presets.find((item) => item.id === currentPreset) || {}).name || currentPreset || '（未选择）')),
                 h('div', null, presets.length
                   ? `共 ${presets.length} 个预设，换标准会改变分数`
-                  : '预设还没读到；点下面「重新读取」重试')),
+                  : '预设还没读到；点下面「重新读取」重试'),
+                // 1.8.0：预设先是写作提示词，才是打分尺——把完整提示词交给 AI
+                h('div', { style: { marginTop: 6 } },
+                  h('button', {
+                    type: 'button',
+                    className: 'wxmp-btn wxmp-focus',
+                    'aria-label': '复制当前预设的写作提示词',
+                    disabled: Boolean(busy) || presetsBusy || !currentPreset,
+                    style: { ...btn('normal'), padding: '5px 11px', fontSize: 12 },
+                    onClick: () => void copyPresetPrompt(),
+                  }, '📋 复制写作提示词'),
+                  h('span', { style: { marginLeft: 8, fontSize: 10.5 } },
+                    '交给 AI 当写作指令；稿子按它写，体检自然过')),
+
+                // 剪贴板兜底：全文显示，手动复制
+                promptPreview
+                  ? h('div', {
+                      style: { marginTop: 8, border: `1px solid ${C.border1}`, borderRadius: 8, padding: 8, background: C.bg2 || 'rgba(127,127,127,0.08)' },
+                    },
+                      h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 } },
+                        h('strong', { style: { fontSize: 11, color: C.label1 } }, `写作提示词 · ${promptPreview.name}`),
+                        h('button', {
+                          type: 'button',
+                          className: 'wxmp-btn wxmp-focus',
+                          'aria-label': '收起写作提示词全文',
+                          style: { ...btn('ghost'), marginLeft: 'auto', padding: '2px 8px', fontSize: 10.5 },
+                          onClick: () => setPromptPreview(null),
+                        }, '收起')),
+                      h('pre', {
+                        // select-all 是内置浏览器类：点一下全选，手动 Ctrl+C 即可
+                        className: 'wxmp-select-all',
+                        style: { margin: 0, fontSize: 10.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto', userSelect: 'all' },
+                      }, promptPreview.text))
+                  : null),
 
               // 预设列表
               presets.length
@@ -2933,6 +3001,20 @@ window.__ModuleLoader__.load({
                           onClick: () => void usePreset(item.id),
                         },
                           h('span', { style: { fontWeight: item.id === currentPreset ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.name),
+                          // 1.8.0：有风格提示词的预设标个记号——它不只能打分，还能当写作指令。
+                          // 点一下直接复制这个预设的提示词，不用先切换。
+                          item.style
+                            ? h('button', {
+                                key: 'style',
+                                type: 'button',
+                                className: 'wxmp-btn wxmp-focus',
+                                'aria-label': `复制预设 ${item.name} 的写作提示词`,
+                                title: '复制这个预设的写作提示词（风格 + 节奏），不用先切换',
+                                disabled: Boolean(busy) || presetsBusy,
+                                style: { border: 'none', background: 'none', padding: '0 2px', fontSize: 10, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
+                                onClick: () => void copyPresetPrompt(item.id),
+                              }, '📝')
+                            : null,
                           item.id === currentPreset
                             ? h('span', { style: { marginLeft: 'auto', fontSize: 10.5, color: C.brand, flexShrink: 0 } }, '使用中')
                             : null,

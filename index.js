@@ -81,6 +81,8 @@ export const OPERATIONS = [
   'article_illustrate',
   'article_presets',
   'article_preset_show',
+  // 1.8.0：预设的第一身份是写作提示词——prompt 把 style.md + 阈值节奏拼成一份指令
+  'article_preset_prompt',
   'article_preset_use',
   'article_preset_export',
   'article_preset_import',
@@ -129,7 +131,7 @@ export const PARAMETER_HINTS = [
   'article_outline(file?, form?), article_set_title(file, title),',
   'article_set_author(file, author),  // author 传空字符串即清空作者名',
   'article_library(check?, guide?, audit?, usable?), article_illustrate(file?, max?, apply?),',
-  'article_presets, article_preset_show(id), article_preset_use(id), article_preset_export(id, out?), article_preset_import(file, as?, force?),',
+  'article_presets, article_preset_show(id), article_preset_prompt(id?), article_preset_use(id), article_preset_export(id, out?), article_preset_import(file, as?, force?),',
   'article_preset_remove(id, allowBuiltin?), article_preset_reset,',
   'cover(file?, subtitle?, badge?, theme?, bg?, imageGen?, prompt?, width?, height?),',
   'draft_create(file?, dryRun?, thumbMediaId?), draft_list(offset?, count?, full?),',
@@ -148,6 +150,9 @@ const PROMPT_TEXT = [
   'Use article_check only for hard publish limits; article_review is the one that tells you whether the draft reads well.',
   'Scoring standards are presets (like DSH agent presets): article_presets lists them, and article_review takes preset=<id>.',
   'Pick a fitting standard: short-punch for notices/quick posts, deep-longform for long method pieces, standard otherwise.',
+  // 1.8.0：预设先是写作提示词，然后才是打分尺。顺序固定：use → prompt → 写 → review。
+  'Presets are WRITING PROMPTS first, scoring rulers second: after picking one, fetch its style with article_preset_prompt(id) and FOLLOW it while writing — style.md defines the voice (hook, paragraph rhythm, tone, ending), thresholds only re-check it afterwards.',
+  'article_brief already embeds the chosen preset\'s style section; skip the separate prompt fetch only if you use article_brief directly.',
   'After the score passes: cover (writes cover: back into the article), draft_create, then publish_submit with yes=true + publish_wait.',
   'Publishing is asynchronous and publish_submit requires explicit yes=true, otherwise it only dry-runs.',
   'Body images must be local files (draft_create uploads them); WeChat filters non-mmbiz image URLs.',
@@ -369,6 +374,12 @@ export function buildArgv(operation, params) {
       break
     case 'article_preset_show':
       argv.push('article', 'preset', 'show', requireString(p, 'id'))
+      break
+    case 'article_preset_prompt':
+      // 预设 → 写作提示词（风格正文 + 阈值节奏）。id 可选：不传就用当前生效的预设，
+      // 和 review 的默认行为一致（CLI 侧 currentPresetId 兜底）。
+      argv.push('article', 'preset', 'prompt')
+      if (p.id) argv.push(String(p.id))
       break
     case 'article_preset_use':
       argv.push('article', 'preset', 'use', requireString(p, 'id'))

@@ -67,7 +67,7 @@ description: >-
   `article_titles` · `article_list` · `article_show` · `article_delete`
 - **体检与改稿**：`article_check` · `article_review` · `article_set_title` · `article_set_author` ·
   `article_library` · `article_illustrate` · `article_preview`
-- **预设**：`article_presets` · `article_preset_show` · `article_preset_use` · `article_preset_export` ·
+- **预设**：`article_presets` · `article_preset_show` · `article_preset_prompt` · `article_preset_use` · `article_preset_export` ·
   `article_preset_import` · `article_preset_remove` · `article_preset_reset`
 - **封面**：`cover`
 - **草稿**：`draft_create` · `draft_list` · `draft_get` · `draft_update` · `draft_delete` · `draft_count`
@@ -127,9 +127,10 @@ comments: false          # 没评论权限时必须 false；mediaId/thumbMediaId
 - **循环姿势**：`article_review` → 按 `line` 改 → 再 review → …… 直到 `pass: true`。
   文章文件是唯一状态，不用记上一轮报告。
 
-## 打分标准 = 预设
+## 打分标准 = 预设（也是写作提示词）
 
-同一套规则引擎，只换**阈值与权重**。
+同一套规则引擎，只换**阈值与权重与风格**。预设的第一身份是**写作提示词**：
+`style.md` 定义文风（开头钩子、段落节奏、语气、结尾动作），阈值只在写完后复核。
 
 | id | 名字 | 适用 | 段落长/过长 | 小节 | 及格线 |
 |---|---|---|---|---|---|
@@ -137,6 +138,9 @@ comments: false          # 没评论权限时必须 false；mediaId/thumbMediaId
 | `short-punch` | 短平快三点式 | 通知、活动、单点方法论 | 120 / 200 | 2~5 | 80 |
 | `deep-longform` | 深度长文 | 复盘、方法论、长案例 | 300 / 450 | 4~10 | 75 |
 
+- **写之前先拿风格**：`article_preset_prompt <id>`（不带 id 就用当前生效的预设）
+  返回拼好的完整写作提示词（风格正文 + 阈值节奏），照它写，体检自然过。
+  `article_brief` 的任务书已内嵌当前预设的风格节，用它就直接跳过单独取。
 - `article_review` 传 `preset` **只对这一篇生效**；`article_preset_use` 把选择存进 config 长期生效。
 - **换预设会改变分数，这是设计意图**，报告里 `preset.id` 会自报用的哪把尺子。
 - 拿不准就用 `standard`。自定义/导入导出的硬约束见 `references/review-and-presets.md`。
