@@ -48,6 +48,18 @@
 | `cli_not_found` | 找不到 `bin/wxmp.js` | 检查插件配置 `cliPath` 或环境变量 `WXMP_CLI_JS` |
 | `timeout`（工具层，`exitCode: 124`） | 子进程超过 `timeoutMs`（默认 120000） | 多为 AI 出图 / 大批图片上传；拆小或调大插件配置 |
 
+## 删除文章（`article_delete`，本地 op 不走 CLI）
+
+| code | 原因 | 处置 |
+|---|---|---|
+| `article_missing_arg` | 没传 `file` | 传文章目录内的 `.md` 文件名重试 |
+| `article_path_invalid` | 解析后不在文章目录内（目录穿越 / 绝对路径越界 / 软链指向目录外） | 只给文件名，不给路径；文章目录见 `article_list` 的 `data.dir` |
+| `article_not_md` | 目标不是 `.md` 普通文件（`bg-*.png`、目录、无扩展名都算） | 只能删单篇 `.md`；底图由面板上传新底图时自动裁剪 |
+| `article_not_found` | 文件不存在（可能已删或移动） | 先 `article_list` 刷新再重试；重复删除会报这条，**第一次其实已删成** |
+| `article_delete_failed` | 删除抛错（文件被占用 / 目录不可写） | 关闭正在占用该文件的编辑器或预览窗口后重试 |
+
+`article_delete` 是写类操作：超时**不自动重试**（防重复删），失败即返回，手动重试前先 `article_list` 确认。
+
 ## 发布终态（`publish_wait` / `publish_status` 的 `statusLabel`）
 
 `0` 发布成功 · `1` 发布中 · `2` 原创校验失败（重复度高，改写后重提）· `3` 常规失败（看 `fail_idx`）

@@ -517,6 +517,40 @@ export function buildArgv(operation, params) {
   return argv
 }
 
+/**
+ * F19：CLI 路径与本地 op 路径的失败结构必须同形。
+ *
+ * 原来这里只把短码埋在 `data.error.code`，而本地 op（ui-backend.deleteArticleFile）
+ * 在**顶层**也给 code / error / hint —— 于是模型按工具描述读顶层时，
+ * `unknown_operation` 这类失败的 code 是 undefined（复核时真的踩到过一次）。
+ * 现在两条路径一视同仁：顶层给 code / error / hint，`data.error.code` 保留不动（兼容既有读法）。
+ *
+ * O2 订正：`failure()` 原来定义在 runCli **之后**，于是 runCli 的三条失败出口
+ * （spawn 抛错、子进程 error、超时）和 parseCliOutput 的兜底分支只能各写一份裸对象，
+ * 顶层 code / error / hint 三样全缺 —— F19 只治了工具入参校验那条路径。
+ * 把 failure 提到 parseCliOutput 之前，这五处出口才能真的共用同一个形状。
+ */
+const FAILURE_HINTS = {
+  cli_not_found: '确认 bin/wxmp.js 存在，或配置 cliPath / 环境变量 WXMP_CLI_JS。',
+  unknown_operation: '操作名不在列表里：先看工具描述里的 op 列表，或先调 doctor 自查环境。',
+  invalid_params: '按参数提示补齐必填项；探路可以先用 article_list / config_show 这类只读 op。',
+  spawn_failed: '子进程没起来：确认 cliPath 指向的 wxmp.js 存在且 node 可执行，再调 doctor 自查。',
+  timeout: '调用超过 timeoutMs：写类操作先别重试，用 publish_status / draft_list 确认首次是否已被受理。',
+  cli_error: 'CLI 退出码非 0 且没输出可解析的 JSON：先看 text 原文，必要时调 doctor。',
+}
+
+function failure(code, message, exitCode = 2, hint = '') {
+  return {
+    ok: false,
+    exitCode,
+    code,
+    error: message,
+    hint: hint || FAILURE_HINTS[code] || '按 message 修正参数后重试；需要更多上下文可先调 doctor。',
+    data: { error: { code, message } },
+    text: `${code}: ${message}`,
+  }
+}
+
 export function parseCliOutput(raw, exitCode) {
   const text = String(raw || '')
   const lines = text.split(/\r?\n/).filter((line) => line.trim().startsWith('{'))
@@ -534,12 +568,13 @@ export function parseCliOutput(raw, exitCode) {
     }
   }
   const trimmed = text.trim()
-  return {
-    ok: exitCode === 0,
-    exitCode: exitCode ?? 1,
-    data: null,
-    text: trimmed ? trimmed.slice(-2000) : '(wxmp 没有输出)',
-  }
+  // O2：兜底分支也要走 failure()，否则「CLI 崩了、输出不是 JSON」这条路径顶层又缺 code/hint。
+  // exitCode 0 却解析不到 JSON 属异常成功（CLI 没按 --json 契约输出），照旧判 ok，
+  // 但同样补齐顶层三样，避免调用方在两套形状之间判断。
+  const code = exitCode === 0 ? 'ok' : 'cli_error'
+  const message = trimmed ? trimmed.slice(-2000) : '(wxmp 没有输出)'
+  const shaped = failure(code, message, exitCode ?? 1)
+  return exitCode === 0 ? { ...shaped, ok: true } : shaped
 }
 
 function defaultStateBase(cwd) {
@@ -589,12 +624,8 @@ function runCli(argv, options) {
           /* ignore */
         }
       }
-      resolve({
-        ok: false,
-        exitCode: 1,
-        data: { error: { code: 'spawn_failed', message: error.message } },
-        text: `spawn_failed: ${error.message}`,
-      })
+      // O2：走 failure()，否则顶层缺 code/error/hint
+      resolve(failure('spawn_failed', error.message, 1))
       return
     }
     runningChildren.add(child)
@@ -619,22 +650,14 @@ function runCli(argv, options) {
       } catch {
         /* 已退出 */
       }
-      finish({
-        ok: false,
-        exitCode: 124,
-        data: { error: { code: 'timeout', message: `wxmp ${argv[0]} 超过 ${timeoutMs}ms` } },
-        text: `timeout: wxmp ${argv.join(' ')} 超过 ${timeoutMs}ms`,
-      })
+      // O2：走 failure()，exitCode 124 保留（写类不自动重试靠它判重）
+      finish(failure('timeout', `wxmp ${argv[0]} 超过 ${timeoutMs}ms`, 124))
     }, timeoutMs)
 
     child.once('error', (error) => {
       runningChildren.delete(child)
-      finish({
-        ok: false,
-        exitCode: 1,
-        data: { error: { code: 'spawn_failed', message: error.message } },
-        text: `spawn_failed: ${error.message}`,
-      })
+      // O2：走 failure()，否则顶层缺 code/error/hint
+      finish(failure('spawn_failed', error.message, 1))
     })
     child.once('close', (code) => {
       let raw = ''
@@ -658,28 +681,31 @@ function runCli(argv, options) {
 }
 
 /**
- * F19：CLI 路径与本地 op 路径的失败结构必须同形。
+ * F19 续（O2）：CLI **自己报的**失败原来原样透传，顶层只有 `{ok, exitCode, data, text}`，
+ * 短码埋在 `data.error.code` —— 模型按工具描述读顶层 code / hint 时拿到 undefined
+ * （第七轮复核实测：桩 CLI 超时 → 顶层 code=undefined、data.error.code="timeout"、spawn=3）。
+ * `failure()` 只覆盖「宿主半构造的失败」，所以这里把 CLI 结果里的短码抬到顶层，
+ * 让三条失败来源（宿主半构造 / 本地 op / CLI 自己报）落在同一个形状上。
  *
- * 原来这里只把短码埋在 `data.error.code`，而本地 op（ui-backend.deleteArticleFile）
- * 在**顶层**也给 code / error / hint —— 于是模型按工具描述读顶层时，
- * `unknown_operation` 这类失败的 code 是 undefined（复核时真的踩到过一次）。
- * 现在两条路径一视同仁：顶层给 code / error / hint，`data.error.code` 保留不动（兼容既有读法）。
+ * 三条不动的边界，写清楚免得以后被「统一」掉：
+ * ① 成功结果原样返回 —— 顶层 code 不该出现在 ok:true 里；
+ * ② 失败但 CLI 没给稳定短码（data.error.code 缺失或非字符串）就**不编一个码**出来，
+ *    宁可少一个字段，也不给模型一个假码；
+ * ③ 已经带顶层 code 的（本地 op、failure() 构造的）原样返回，不重复套。
  */
-const FAILURE_HINTS = {
-  cli_not_found: '确认 bin/wxmp.js 存在，或配置 cliPath / 环境变量 WXMP_CLI_JS。',
-  unknown_operation: '操作名不在列表里：先看工具描述里的 op 列表，或先调 doctor 自查环境。',
-  invalid_params: '按参数提示补齐必填项；探路可以先用 article_list / config_show 这类只读 op。',
-}
-
-function failure(code, message, exitCode = 2, hint = '') {
+function promoteCliFailure(result) {
+  if (!result || result.ok !== false || result.code) return result
+  const detail = result.data && result.data.error
+  const code = detail && typeof detail.code === 'string' ? detail.code : ''
+  if (!code) return result
+  const message = (detail && detail.message) || result.text || code
   return {
-    ok: false,
-    exitCode,
+    ...result,
     code,
     error: message,
-    hint: hint || FAILURE_HINTS[code] || '按 message 修正参数后重试；需要更多上下文可先调 doctor。',
-    data: { error: { code, message } },
-    text: `${code}: ${message}`,
+    hint:
+      FAILURE_HINTS[code] ||
+      '这是 CLI 自己报的失败：先看 message 判断是环境问题（配置 / 网络 / 凭证）还是参数问题，需要更多上下文就调 doctor。',
   }
 }
 
@@ -1104,7 +1130,7 @@ export function apply(ctx, config) {
         if (error instanceof ToolInputError) return failure(error.code, error.message)
         return failure('invalid_params', error.message)
       }
-      return enqueue(argv)
+      return promoteCliFailure(await enqueue(argv))
     },
   }
 

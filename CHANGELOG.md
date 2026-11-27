@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.8.2 — 2026-11-14
+
+失败形状收口（O2）+ 交接报告机制。
+
+- 修复（**O2**）：`runCli` 的三条失败出口（spawn 抛错 / 子进程 error / 超时）与 `parseCliOutput` 的兜底分支各自返回裸对象，**顶层缺 `code` / `error` / `hint`** —— 模型按工具描述读顶层时拿到 `undefined`。F19 当时只治了工具入参校验那条路径。
+  - `failure()` 与 `FAILURE_HINTS` 提到 `parseCliOutput` 之前，五处出口共用同一个形状。
+  - 新增两个短码提示：`spawn_failed`、`cli_error`（`timeout` 也有了专门的下一步建议）。
+  - 三条边界保持不变：成功结果不塞顶层 `code`；CLI 没给稳定短码时不编造；已带 `code` 的不重复套。
+- 新增：`HANDOFF.md` —— 插件交接报告，十节结构（现状 / 文件地图 / 双半契约 / 错误形状 / op 清单 / 超时重试 / 未闭环项 / 故障对照 / **维护规则** / 开工顺序）。
+- 新增：`tools/handoff-check.mjs` —— 报告与代码的一致性校验，**19 项**，靠「从代码现取事实」比对而不是关键词匹配：版本号、op 数量与逐项覆盖、幽灵 op、`buildArgv` 分支、本地 op、`FAILURE_HINTS` 短码、`patch config ↔ DEFAULTS`、6 条结构断言（`failure()` 在 `runCli` 之前 / 只有一份 / `promoteCliFailure` 被调用 / `inject=[]` / exact+prefix 双路由 / `panellist.id == main.key`）、引用文件存在、报告 ≤ 400 行、`SKILL.md` 预算。
+- 新增：`skills/wxmp/references/handoff.md` —— 交接规则全文（为什么、跑什么、12 项必须更新报告的触发条件、校验器查什么、不许改坏校验器的四条）。
+- 新增：根 `package.json` 脚本 `handoff:check` / `handoff:check:verbose` / `verify`。
+- 测试：`test/plugin.test.js` 增 O2 回归锁（顶层 code/error/hint 三样 + 与 `data.error.code` 同源 + 成功不带 code）。已做变异验证：改回裸对象立刻红，还原即绿。
+- 测试：全量 328 个用例通过。
+
 ## 1.8.1 — 2026-11-12
 
 预览与本地文件从「藏起来」变成「钉在面板上」。

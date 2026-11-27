@@ -23,6 +23,7 @@
 | operation | params | `data` 里要看的字段 |
 |---|---|---|
 | `article_new` | `title*`、`author?`、`theme?`、`cover?`、`force?` | `path`、`title`、`theme` |
+| `article_delete` | `file*` | `file`（basename）、`bytes`。**只删本地 .md**，微信草稿与已发文章不动（删草稿用 `draft_delete`）。本地操作不走 CLI；失败码见 `troubleshooting.md` 的「删除文章」一节 |
 | `article_import` | `url?`、`list?`（二选一） | `total`、`imported`、`failed`、`results[]{ok,url,file,title,chars}` |
 | `article_brief` | `topic?`、`file?`、`form?`、`words?`、`audience?`、`angle?`、`preset?` | `topic`、`form`、`formLabel`、`words`、`markdown`、`preset{id,name,hasStyle}`（任务书内嵌该预设的风格节） |
 | `article_outline` | `file?`、`form?` | 骨架 + 现有小标题的对应关系 |

@@ -1,6 +1,6 @@
 {
   "name": "@local/wxmp",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -22,6 +22,8 @@
     "locale/*.json",
     "README.md",
     "CHANGELOG.md",
+    "HANDOFF.md",
+    "tools/handoff-check.mjs",
     "skills"
   ],
   "peerDependencies": {
@@ -68,6 +70,8 @@
   "keywords": [
     "deepseek",
     "dsh",
-    "dsh-plugin"
+    "dsh-plugin",
+    "wechat",
+    "official-account"
   ]
 }

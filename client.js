@@ -961,39 +961,77 @@ window.__ModuleLoader__.load({
         }
       }
 
-      async function publishNow() {
+      /**
+       * F30：把「发表」拆成 提交 与 轮询 两段（第十一轮复核结论：不 await 整段的方向对，
+       * 但代价是丢掉了 T9-2 的统一失败口径 —— 浮层里那段「就地显示原因 + 再点一次重试」
+       * 对发表成了永不生效的死代码）。
+       *
+       * submitPublish 只做提交（秒级）：失败时把 {ok:false,error} 原样交回，
+       * runConfirm 会**留着浮层**显示 message + code + hint 并允许就地重试 ——
+       * 与删文章 / 清数据 / 清凭据同一口径。成功时返回 publishId，由调用方决定
+       * 谁来跑轮询（确认浮层路径 fire-and-forget，见 askPublish）。
+       *
+       * 返回值语义（与 runAction 对齐）：
+       *  - {ok:true, publishId:''} 提交成功但没拿到 id（已 notify，不轮询）
+       *  - {ok:false, error:{code,message,hint}} 失败；error 齐全时浮层会显示
+       */
+      async function submitPublish() {
         if (publishing) {
-          notify('正在提交发布任务，请稍等…', 'warn', 2000)
-          return
+          return {
+            ok: false,
+            error: {
+              code: 'publishing',
+              message: '上一个发布任务还在进行',
+              hint: '等它出结果再提交，避免重复占用群发额度。',
+            },
+          }
         }
-        const mediaId = detail && detail.article && detail.article.article && detail.article.article.mediaId
-        if (!mediaId) {
-          notify('还没有草稿 id，先点「建草稿」', 'warn')
-          return
+        const art = (detail && detail.article && detail.article.article) || {}
+        if (!art.mediaId) {
+          return {
+            ok: false,
+            error: { code: 'media_id_required', message: '这篇还没有草稿', hint: hintFor('media_id_required') },
+          }
         }
         setPublishing(true)
-        setBusy('publish')
-        pushLog(`$ wxmp publish-submit`)
+        let outcome
         try {
-          const outcome = await runAction('publish', 'publish-submit', { mediaId }, 'publish submit')
-          if (!outcome || !outcome.ok) {
-            // 48001：接口权限问题，不是操作失误。常驻一行说清怎么接着往下走。
-            if (outcome && outcome.error && outcome.error.code === 'wechat_48001') {
-              setManualPublish(true)
-              notify('你的账号没有发布 API 权限（48001）。草稿已送进草稿箱，请在公众号后台人工发布。', 'err', 8000)
-            } else {
-              notify(outcome && outcome.error ? outcome.error.message : '提交失败', 'err', 6000)
-            }
-            return
+          outcome = await runAction('publish', 'publish-submit', { mediaId: art.mediaId }, 'publish submit')
+        } catch (error) {
+          setPublishing(false)
+          return { ok: false, error: { code: 'network', message: error.message, hint: hintFor('network') } }
+        }
+        // F33：runAction 被别的操作占着时会返回 undefined（toast 已说过原因）。
+        // 这里必须转成一条**有原因**的失败，否则浮层只显示一句没有上下文的「提交失败」。
+        if (!outcome) {
+          setPublishing(false)
+          return {
+            ok: false,
+            error: { code: 'busy', message: '上一个操作还在进行', hint: '等它结束后再点发表。' },
           }
-          setFlow((prev) => ({ ...prev, step: 5 }))
-          const publishId = outcome.data && outcome.data.publishId
-          if (!publishId) {
-            notify('提交成功，但未返回发布 id，稍后在公众号后台查结果。', 'warn', 6000)
-            return
-          }
-          pushLog(`$ wxmp publish status ${publishId}`)
-          // 轮询：异步任务，submit 成功不等于发布成功
+        }
+        if (!outcome.ok) {
+          setPublishing(false)
+          // 48001：接口权限问题，不是操作失误。浮层显示原因的同时，常驻横幅引导人工群发。
+          if (outcome.error && outcome.error.code === 'wechat_48001') setManualPublish(true)
+          return outcome
+        }
+        const publishId = (outcome.data && outcome.data.publishId) || ''
+        if (aliveRef.current) setFlow((prev) => ({ ...prev, step: 5 }))
+        if (!publishId) {
+          setPublishing(false)
+          notify('提交成功，但未返回发布 id，稍后在公众号后台查结果。', 'warn', 6000)
+        }
+        return { ok: true, publishId }
+      }
+
+      /**
+       * F30：轮询段（最长 20×3s）。绝不放进确认浮层去 await —— 全屏遮罩会挡死面板一分钟。
+       * 进度显示位：主按钮「正在提交…」（publishing 撑住）、流水线步骤、pushLog 逐行、终态 toast。
+       */
+      async function pollPublishStatus(publishId) {
+        pushLog(`$ wxmp publish status ${publishId}`)
+        try {
           let finished = false
           for (let attempt = 0; attempt < 20 && aliveRef.current && !finished; attempt += 1) {
             await new Promise((resolve) => setTimeout(resolve, 3000))
@@ -1019,13 +1057,59 @@ window.__ModuleLoader__.load({
           }
         } catch (error) {
           pushLog(`✘ ${error.message}`)
-          notify(error.message || '发布出错', 'err', 6000)
+          notify(error.message || '发布状态查询出错', 'err', 6000)
         } finally {
-          if (aliveRef.current) {
-            setBusy('')
-            setPublishing(false)
-          }
+          if (aliveRef.current) setPublishing(false)
         }
+      }
+
+      /**
+       * F28 + F30：发表是全面板唯一「对外且撤不回」的操作 —— 群发给所有关注者、
+       * 用掉当天群发额度、平台还要审核，误点的代价比删本地文件重得多
+       * （删本地 .md 还能从草稿箱重推，发出去的文章撤不回）。
+       * 所以它必须走统一确认浮层（T9-2），和删文章/清凭据同一口径。
+       *
+       * 分工（第十一轮复核 F30 的修法）：
+       *  - onConfirm 只 await **提交段**（submitPublish，秒级）——失败时 runConfirm
+       *    留着浮层就地显示 message + code + hint，与删文章/清数据同一口径，可就地重试；
+       *  - 成功后的**轮询段**（最长 20×3s）fire-and-forget —— 全屏遮罩绝不能扛长任务，
+       *    那会把整个面板挡死一分钟；进度显示位在主按钮「正在提交…」（publishing 撑住）、
+       *    流水线步骤、pushLog 逐行、终态 toast。
+       * 「还没有草稿 id」这类**可执行**提示仍走 toast 直接指路，不弹无意义的确认框。
+       */
+      function askPublish() {
+        if (publishing) {
+          notify('正在提交发布任务，请稍等…', 'warn', 2000)
+          return
+        }
+        const mediaId = detail && detail.article && detail.article.article && detail.article.article.mediaId
+        if (!mediaId) {
+          notify('还没有草稿 id，先点「建草稿」', 'warn')
+          return
+        }
+        const title = (detail && detail.article && detail.article.article && detail.article.article.title) || '当前文章'
+        requestConfirm({
+          title: '现在发表这篇文章？',
+          body: [
+            `要发表的是：${title}`,
+            '发出后会**群发给所有关注者**，并占用当天的一次群发额度。',
+            '平台还要审核，提交成功不等于发布成功 —— 面板会自动轮询，终态以「发布状态」为准。',
+            '发出后**不能撤回**（公众号只允许删除已发文章，删除后仍会留下「已发布」记录）。',
+          ],
+          confirmLabel: '发表',
+          busyLabel: '正在提交…',
+          danger: true,
+          onConfirm: async () => {
+            const result = await submitPublish()
+            // 提交成功才把轮询放后台跑；失败留在浮层里显示、允许就地重试
+            if (result.ok && result.publishId) {
+              void pollPublishStatus(result.publishId).catch((error) => {
+                notify(`发布状态查询出错：${(error && error.message) || error}`, 'err', 6000)
+              })
+            }
+            return result
+          },
+        })
       }
 
       /* ── 封面：三种背景来源（与 CLI 的三档一一对应）───────
@@ -1831,7 +1915,8 @@ window.__ModuleLoader__.load({
               // accent：实色高对比。整个面板只有这一个用 accent，确保视线第一落点在这里
               style: { ...btn('accent'), padding: '8px 20px', fontSize: 13 },
               disabled: Boolean(busy) || publishing || !selected,
-              onClick: publishNow,
+              // F28：一键直发改为一问再发 —— 走统一确认浮层（askPublish 里先过防重入与「先建草稿」两道前置）
+              onClick: askPublish,
             }, busy === 'publish' || publishing ? '正在提交…' : '📤 发表到公众号'),
             h('button', {
               type: 'button',
