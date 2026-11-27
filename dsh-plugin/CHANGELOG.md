@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.3 — 2026-11-14
+
+发布形态修正：仓库第一次包含完整项目，不再只有插件半边。
+
+- 修复（**发布**）：此前仓库只推了 `dsh-plugin/` 子目录，`bin/` `src/` `lib/` 全部缺失，
+  `wxmp doctor` 一律报 `cli_not_found`。现改为推送项目根（含 CLI 与插件），
+  插件按 `pluginDir/../bin/wxmp.js` 即可自动定位 CLI，无需配置 `cliPath`。
+- 版本号与 tag 对齐：`package.json` 与 `dsh-plugin/package.json` 同步为 `1.8.3`，
+  对应 tag `v1.8.3-full`。
+
+代码未改动；本版仅修正分发内容与版本声明。
+
 ## 1.8.2 — 2026-11-14
 
 失败形状收口（O2）+ 交接报告机制。
