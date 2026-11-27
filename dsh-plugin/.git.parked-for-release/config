@@ -1,0 +1,12 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+[user]
+	name = Kewei Chen
+	email = wodaimnd@users.noreply.github.com
+[remote "origin"]
+	url = https://github.com/wodaimnd/wxmp.git
+	fetch = +refs/heads/*:refs/remotes/origin/*

@@ -1,0 +1,52 @@
+{
+  "name": "wxmp",
+  "version": "1.8.2",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "微信公众号（服务号/订阅号）文章制作与发布 CLI：Markdown → 微信内联样式 HTML → 草稿箱 → 发布，零依赖",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "wxmp": "./bin/wxmp.js"
+  },
+  "scripts": {
+    "test": "node --test test/markdown.test.js test/unit.test.js test/cover-layout.test.js test/cover-composite.test.js test/harvest-imagegen.test.js test/gemini-provider.test.js test/modelscope-provider.test.js test/wechat-extractor.test.js test/review.test.js test/review-content.test.js test/writing-lab.test.js test/image-lab.test.js test/naming-synonyms.test.js test/presets.test.js test/cli.test.js test/plugin.test.js test/ui.test.js test/client-mount.test.js test/mount.test.js",
+    "doctor": "node bin/wxmp.js doctor",
+    "handoff:check": "node dsh-plugin/tools/handoff-check.mjs",
+    "handoff:check:verbose": "node dsh-plugin/tools/handoff-check.mjs --verbose",
+    "verify": "npm run handoff:check && npm test"
+  },
+  "files": [
+    "bin",
+    "src",
+    "tools",
+    "lib",
+    "dsh-plugin",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "forge": {
+      "absorbed": [
+        {
+          "what": "AI 配图供应商链（9 家 + fallback 编排 + 传输层）",
+          "from": "dsh-wewrite v0.5.3",
+          "file": "lib/index.js:3089-3460（providers/types, registry, redaction, transport, 9 家工厂）",
+          "license": "MIT",
+          "change": "原样迁入 + 加中文注释；修正原代码把中止时的 providerId 写死为 'openai' 的问题（改为 'chain'）；新增 createCustomProvider / buildProviderChain 支持 OpenAI 兼容中转站",
+          "kept": "错误分类可重试性、单家重试上限 2、b64_json 与 url 双形态、sniffMime 按文件头判断"
+        },
+        {
+          "what": "无字抽象背景 + GDI 中文标题的合成思路",
+          "from": "自研（基于 dsh-wewrite 的「AI 配图」能力重新组合）",
+          "file": "tools/cover-composite.js",
+          "license": "MIT",
+          "change": "新写：等比裁剪（planBackgroundFit）、压暗蒙版、复用 cover-layout.js 的版式",
+          "kept": "只借「AI 出背景、代码排文字」的分工思路，代码全新"
+        }
+      ]
+    }
+  }
+}

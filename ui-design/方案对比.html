@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>公众号文章工作台 · UI 方案对比</title>
+<style>
+/* ══════════════════════════════════════════════════════════════
+   设计原型：3 个方案可切换。所有颜色用 --dsw-alias-* token，
+   带 fallback 便于独立打开预览；放进插件后自动跟随宿主昼夜主题。
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --label-1: var(--dsw-alias-label-primary, #e8e8e8);
+  --label-2: var(--dsw-alias-label-secondary, #a0a0a0);
+  --label-3: var(--dsw-alias-label-tertiary, #6f6f6f);
+  --bg-base: var(--dsw-alias-bg-base, #17171a);
+  --bg-1: var(--dsw-alias-bg-layer-1, #202024);
+  --bg-2: var(--dsw-alias-bg-layer-2, #26262b);
+  --bg-3: var(--dsw-alias-bg-layer-3, #1c1c20);
+  --border-1: var(--dsw-alias-border-l1, #333338);
+  --border-2: var(--dsw-alias-border-l2, #3d3d44);
+  --brand: var(--dsw-alias-state-business-primary, #07c160);
+  --warn: #e8a33d;
+  --danger: #e05c5c;
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #0f0f11;
+  color: var(--label-1);
+  font: 13px/1.55 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── 滚动条：这是需求里的硬要求，统一 10px 细滚动条 ───────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--label-3) 34%, transparent);
+  border-radius: 99px;
+  border: 2.5px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--label-3) 58%, transparent);
+  background-clip: padding-box;
+  border: 2.5px solid transparent;
+}
+.scroller {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--label-3) 34%, transparent) transparent;
+}
+
+/* ── 顶部方案切换条 ──────────────────────────────────────── */
+.toolbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 20px;
+  background: color-mix(in srgb, #0f0f11 88%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border-1);
+}
+.toolbar h1 { margin: 0 14px 0 0; font-size: 14px; font-weight: 600; letter-spacing: .2px; }
+.toolbar .sub { color: var(--label-3); font-size: 12px; margin-right: auto; }
+.seg { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--bg-1); border: 1px solid var(--border-1); }
+.seg button {
+  appearance: none; border: 0; background: transparent; color: var(--label-2);
+  padding: 6px 14px; border-radius: 7px; font: inherit; font-size: 12.5px; cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.seg button:hover { color: var(--label-1); }
+.seg button[aria-selected="true"] { background: var(--brand); color: #07130c; font-weight: 600; }
+.seg button:focus-visible { outline: 2px solid color-mix(in srgb, var(--brand) 80%, transparent); outline-offset: 2px; }
+
+.optnote {
+  padding: 14px 20px; font-size: 12.5px; color: var(--label-2);
+  border-bottom: 1px solid var(--border-1);
+  background: var(--bg-3);
+  line-height: 1.7;
+}
+.optnote b { color: var(--label-1); }
+.optnote .thumb { color: var(--brand); }
+
+.panel { display: none; }
+.panel.on { display: block; }
+
+/* ══════════════════════════════════════════════════════════════
+   方案 A：三栏工作台（列表 · 预览 · 操作）
+   ══════════════════════════════════════════════════════════════ */
+.a-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) minmax(240px, 288px);
+  gap: 0;
+  height: calc(100vh - 132px);
+  min-height: 520px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.a-col {
+  min-height: 0; overflow-y: auto; padding: 16px;
+  border-right: 1px solid var(--border-1);
+}
+.a-col:last-child { border-right: 0; }
+
+.section-title {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 10px; font-size: 12px; font-weight: 600;
+  color: var(--label-2); letter-spacing: .4px; text-transform: uppercase;
+}
+.section-title .count {
+  margin-left: auto; font-weight: 500; color: var(--label-3);
+  text-transform: none; letter-spacing: 0;
+}
+
+.card {
+  border: 1px solid var(--border-1); border-radius: var(--radius);
+  background: var(--bg-1);
+  padding: 11px 12px; margin-bottom: 8px; cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+.card:hover { border-color: var(--border-2); background: var(--bg-2); }
+.card.sel { border-color: color-mix(in srgb, var(--brand) 55%, var(--border-1)); background: color-mix(in srgb, var(--brand) 7%, var(--bg-1)); }
+.card:focus-visible { outline: 2px solid color-mix(in srgb, var(--brand) 75%, transparent); outline-offset: 2px; }
+.card .t { font-weight: 600; font-size: 13px; color: var(--label-1); margin-bottom: 4px; line-height: 1.4; }
+.card .m { font-size: 11.5px; color: var(--label-3); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 7px; border-radius: 99px; font-size: 10.5px; font-weight: 600;
+  border: 1px solid transparent;
+}
+.badge.draft { color: #6fb0ff; background: color-mix(in srgb, #6fb0ff 12%, transparent); border-color: color-mix(in srgb, #6fb0ff 34%, transparent); }
+.badge.ok { color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); border-color: color-mix(in srgb, var(--brand) 32%, transparent); }
+.badge.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); border-color: color-mix(in srgb, var(--warn) 34%, transparent); }
+.badge.idle { color: var(--label-3); background: var(--bg-3); border-color: var(--border-1); }
+
+.btn {
+  appearance: none; border: 1px solid var(--border-1); border-radius: 9px;
+  background: var(--bg-2); color: var(--label-2);
+  padding: 7px 12px; font: inherit; font-size: 12.5px; cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.btn:hover:not(:disabled) { background: var(--bg-1); color: var(--label-1); border-color: var(--border-2); }
+.btn:focus-visible { outline: 2px solid color-mix(in srgb, var(--brand) 75%, transparent); outline-offset: 2px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--brand); color: #07130c; border-color: transparent; font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--brand) 86%, #fff); color: #07130c; }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 34%, transparent); }
+
+.preview-paper {
+  border: 1px solid var(--border-1); border-radius: var(--radius);
+  background: #fff; color: #1a1a1a; overflow: hidden;
+}
+.preview-paper .cover { display: block; width: 100%; aspect-ratio: 2.35/1; object-fit: cover; background: linear-gradient(135deg, #07c160, #059b4c); }
+.preview-paper .body { padding: 18px 18px 26px; font-size: 13.5px; line-height: 1.8; }
+.preview-paper h2 { font-size: 15px; margin: 20px 0 10px; border-left: 3px solid #07c160; padding-left: 9px; }
+.preview-paper p { margin: 0 0 12px; color: #3f3f3f; }
+.preview-paper .digest { background: #f7f7f7; padding: 9px 11px; border-radius: 6px; font-size: 12px; color: #666; margin-bottom: 16px; }
+
+.kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.kpi { border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-3); padding: 9px 10px; }
+.kpi .k { font-size: 10.5px; color: var(--label-3); margin-bottom: 3px; }
+.kpi .v { font-size: 13px; font-weight: 600; color: var(--label-1); }
+.kpi .v.warn { color: var(--warn); }
+.kpi .v.ok { color: var(--brand); }
+
+.checklist { list-style: none; margin: 0 0 14px; padding: 0; }
+.checklist li {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 0; font-size: 12.5px; color: var(--label-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-1) 60%, transparent);
+}
+.checklist li:last-child { border-bottom: 0; }
+.checklist .ico { flex: none; width: 15px; text-align: center; font-size: 12px; }
+.checklist .ico.ok { color: var(--brand); }
+.checklist .ico.warn { color: var(--warn); }
+.checklist .ico.err { color: var(--danger); }
+.checklist .txt { flex: 1; min-width: 0; }
+.checklist .txt small { display: block; color: var(--label-3); font-size: 11px; margin-top: 1px; }
+
+.actions { display: flex; flex-direction: column; gap: 7px; }
+.actions .row { display: flex; gap: 7px; }
+.actions .row > * { flex: 1; }
+
+/* ══════════════════════════════════════════════════════════════
+   方案 B：单列卡片流（极简）
+   ══════════════════════════════════════════════════════════════ */
+.b-wrap { max-width: 820px; margin: 0 auto; padding: 22px 20px 48px; }
+.b-hero {
+  border: 1px solid var(--border-1); border-radius: 16px; padding: 18px 20px; margin-bottom: 16px;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--bg-2) 90%, transparent), color-mix(in srgb, var(--bg-3) 85%, transparent));
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.b-hero .grow { flex: 1; min-width: 200px; }
+.b-hero h2 { margin: 0 0 4px; font-size: 16px; }
+.b-hero .sub { color: var(--label-3); font-size: 12.5px; }
+.b-grid { display: grid; gap: 12px; }
+.b-item {
+  border: 1px solid var(--border-1); border-radius: var(--radius);
+  background: var(--bg-1); padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.b-item:hover { border-color: var(--border-2); background: var(--bg-2); }
+.b-item .grow { flex: 1; min-width: 180px; }
+.b-item .t { font-weight: 600; margin-bottom: 3px; }
+.b-item .m { font-size: 11.5px; color: var(--label-3); }
+.b-steps { display: flex; align-items: center; gap: 6px; margin: 18px 0 10px; flex-wrap: wrap; }
+.b-step {
+  display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 99px;
+  border: 1px solid var(--border-1); background: var(--bg-3); font-size: 12px; color: var(--label-2);
+}
+.b-step.done { border-color: color-mix(in srgb, var(--brand) 42%, transparent); background: color-mix(in srgb, var(--brand) 10%, transparent); color: var(--brand); }
+.b-step.now { border-color: color-mix(in srgb, var(--brand) 65%, transparent); background: color-mix(in srgb, var(--brand) 16%, transparent); color: var(--label-1); font-weight: 600; }
+.b-step .n { width: 17px; height: 17px; border-radius: 50%; background: var(--bg-2); display: grid; place-items: center; font-size: 10.5px; flex: none; }
+.b-step.done .n { background: var(--brand); color: #07130c; }
+
+/* ══════════════════════════════════════════════════════════════
+   方案 C：流水线向导（左右分屏 + 阶段看板）
+   ══════════════════════════════════════════════════════════════ */
+.c-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  height: calc(100vh - 132px);
+  min-height: 520px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.c-main { min-height: 0; overflow-y: auto; padding: 20px 24px 40px; border-right: 1px solid var(--border-1); }
+.c-side { min-height: 0; overflow-y: auto; padding: 16px; }
+
+.stage-list { display: flex; flex-direction: column; gap: 8px; }
+.stage {
+  border: 1px solid var(--border-1); border-radius: var(--radius); background: var(--bg-1);
+  padding: 12px 13px; position: relative; overflow: hidden;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+.stage.done { border-color: color-mix(in srgb, var(--brand) 40%, var(--border-1)); }
+.stage.active { border-color: color-mix(in srgb, var(--brand) 62%, var(--border-1)); background: color-mix(in srgb, var(--brand) 6%, var(--bg-1)); }
+.stage.locked { opacity: .55; }
+.stage::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: transparent;
+}
+.stage.done::before { background: var(--brand); }
+.stage.active::before { background: var(--brand); box-shadow: 0 0 12px color-mix(in srgb, var(--brand) 60%, transparent); }
+.stage-head { display: flex; align-items: center; gap: 9px; margin-bottom: 5px; }
+.stage-idx {
+  width: 20px; height: 20px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  background: var(--bg-2); color: var(--label-3); border: 1px solid var(--border-1);
+}
+.stage.done .stage-idx { background: var(--brand); color: #07130c; border-color: transparent; }
+.stage.active .stage-idx { background: color-mix(in srgb, var(--brand) 40%, transparent); color: var(--label-1); border-color: color-mix(in srgb, var(--brand) 60%, transparent); }
+.stage-name { font-weight: 600; font-size: 13px; }
+.stage-desc { font-size: 11.5px; color: var(--label-3); margin-left: 29px; }
+.stage-body { margin: 9px 0 0 29px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.term {
+  border: 1px solid var(--border-1); border-radius: var(--radius);
+  background: #0d0d10; padding: 12px 14px; font-family: ui-monospace, Consolas, monospace;
+  font-size: 11.5px; line-height: 1.7; color: #b9b9bf;
+  max-height: 260px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+}
+.term .ok { color: var(--brand); }
+.term .dim { color: #5c5c66; }
+.term .warn { color: var(--warn); }
+.term .err { color: var(--danger); }
+
+.hint {
+  border-left: 3px solid color-mix(in srgb, var(--warn) 55%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  padding: 9px 12px; border-radius: 0 8px 8px 0; font-size: 12px; color: var(--label-2);
+  margin-top: 10px;
+}
+.hint b { color: var(--warn); }
+
+/* ── 响应式：窄屏自动降级，而不是横向溢出 ─────────────────── */
+@media (max-width: 1100px) {
+  .a-shell { grid-template-columns: 240px minmax(0, 1fr); }
+  .a-col:nth-child(3) {
+    grid-column: 1 / -1;
+    border-right: 0;
+    border-top: 1px solid var(--border-1);
+    max-height: 42vh;
+  }
+  .a-shell { height: auto; }
+  .a-col { max-height: 62vh; }
+}
+@media (max-width: 760px) {
+  .a-shell { grid-template-columns: 1fr; }
+  .a-col { max-height: none; border-right: 0; border-bottom: 1px solid var(--border-1); }
+  .c-shell { grid-template-columns: 1fr; height: auto; }
+  .c-main { border-right: 0; border-bottom: 1px solid var(--border-1); max-height: none; }
+  .c-side { max-height: none; }
+  .toolbar { padding: 12px 14px; }
+  .toolbar h1 { font-size: 13px; }
+  .b-wrap { padding: 16px 14px 40px; }
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>公众号文章工作台 · UI 方案</h1>
+  <span class="sub">点上面的按钮切换，三个方案都能滚动（试试滚轮）</span>
+  <div class="seg" role="tablist">
+    <button role="tab" aria-selected="true" data-opt="a">方案 A · 三栏</button>
+    <button role="tab" aria-selected="false" data-opt="b">方案 B · 极简</button>
+    <button role="tab" aria-selected="false" data-opt="c">方案 C · 向导</button>
+  </div>
+</div>
+
+<!-- ══════════════ 方案 A ══════════════ -->
+<div class="optnote" data-note="a">
+  <b>方案 A · 三栏工作台</b>　<span class="thumb">适合「手里已经有几篇文章、要反复改」的人。</span>
+  左栏文章列表（始终可见，不用来回跳）、中栏所见即所得预览、右栏操作与检查结果。
+  一屏之内完成「选文章 → 看排版 → 改 → 发」，操作按钮永远在右手边。
+  <br>代价：需要 900px 以上宽度，窄屏会挤。
+</div>
+<div class="panel on" data-panel="a">
+  <div class="a-shell">
+    <!-- 左：文章列表 -->
+    <div class="a-col scroller">
+      <div class="section-title">我的文章 <span class="count">4 篇</span></div>
+
+      <div class="card sel" tabindex="0">
+        <div class="t">DSH 是什么：一个把 AI 变成能干活的操作台</div>
+        <div class="m">
+          <span class="badge ok">已校验</span>
+          <span class="badge draft">草稿中</span>
+          <span>11-03</span>
+        </div>
+      </div>
+
+      <div class="card" tabindex="0">
+        <div class="t">微信小程序自动化：从零到能跑</div>
+        <div class="m">
+          <span class="badge warn">缺封面</span>
+          <span class="badge idle">未建草稿</span>
+          <span>11-01</span>
+        </div>
+      </div>
+
+      <div class="card" tabindex="0">
+        <div class="t">截图对齐的 5 个技巧</div>
+        <div class="m">
+          <span class="badge ok">已发布</span>
+          <span>10-28</span>
+        </div>
+      </div>
+
+      <div class="card" tabindex="0">
+        <div class="t">（草稿）还没想好标题</div>
+        <div class="m">
+          <span class="badge idle">草稿</span>
+          <span>10-25</span>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <button class="btn primary" style="width:100%;">＋ 写一篇新文章</button>
+      </div>
+    </div>
+
+    <!-- 中：预览 -->
+    <div class="a-col scroller">
+      <div class="section-title">
+        预览
+        <span class="count">手机宽度模拟</span>
+      </div>
+      <div class="preview-paper">
+        <div class="cover"></div>
+        <div class="body">
+          <div style="font-size:19px;font-weight:700;line-height:1.45;margin-bottom:8px;">
+            DSH 是什么：一个把 AI 变成能干活的操作台
+          </div>
+          <div style="font-size:11.5px;color:#999;margin-bottom:14px;">快乐愿享</div>
+          <div class="digest">
+            大模型会聊天，但不会替你改文件、跑命令、点按钮。DSH 补的就是这一段。
+          </div>
+          <p>大多数人第一次用 AI 编程，都是这个体验：它答得很好，但活还是你自己干。</p>
+          <h2>一、Harness 到底是个什么东西</h2>
+          <p>Harness 这个词本意是「马具」。马有力气，但得套上挽具才能拉车。</p>
+          <p>放到 AI 里，模型是那匹马：它擅长理解、推理、生成，但它看不见你的硬盘、碰不到你的终端。</p>
+          <h2>二、没有它和有它，差别在哪</h2>
+          <p>举一个我这几天真实做的事：我说「帮我把这个项目做成 Windows 能用的版本」，得到的是一串动作，而不是一段建议。</p>
+          <p style="color:#999;">（下面还有内容，滚动看）</p>
+          <h2>三、DSH 的几个关键设计</h2>
+          <p>它不是一个大程序，是一堆可插拔的零件。插件即能力，装上就长出新器官。</p>
+          <h2>四、它适合谁</h2>
+          <p>手上有重复性工作、愿意把流程写成脚本的人。你的需求里出现「帮我做」而不是「告诉我」，才轮到它上场。</p>
+          <p style="color:#999;">—— 正文到底了 ——</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：操作 -->
+    <div class="a-col scroller">
+      <div class="section-title">状态</div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="k">标题</div><div class="v ok">24 / 32</div></div>
+        <div class="kpi"><div class="k">摘要</div><div class="v ok">59 / 120</div></div>
+        <div class="kpi"><div class="k">正文</div><div class="v ok">10428 / 19999</div></div>
+        <div class="kpi"><div class="k">体积</div><div class="v ok">13 KB / 1 MB</div></div>
+      </div>
+
+      <div class="section-title">发布前检查</div>
+      <ul class="checklist">
+        <li><span class="ico ok">✔</span><span class="txt">标题长度<small>24 字，上限 32</small></span></li>
+        <li><span class="ico ok">✔</span><span class="txt">摘要<small>59 字，自动生成</small></span></li>
+        <li><span class="ico ok">✔</span><span class="txt">封面已生成<small>900×383，GDI 渲染</small></span></li>
+        <li><span class="ico ok">✔</span><span class="txt">正文体积<small>10428 字符 · 13 KB</small></span></li>
+        <li><span class="ico warn">!</span><span class="txt">缺「阅读原文」链接<small>可选，不影响发布</small></span></li>
+      </ul>
+
+      <div class="section-title">下一步</div>
+      <div class="actions">
+        <button class="btn primary">发表到公众号</button>
+        <div class="row">
+          <button class="btn">重新生成封面</button>
+          <button class="btn">预览</button>
+        </div>
+        <button class="btn">更新草稿</button>
+      </div>
+
+      <div class="hint" style="margin-top:14px;">
+        <b>发布是异步的。</b>提交成功不等于发布成功，平台审核还在后面。点发表后会自动轮询，成功后把永久链接给你。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ 方案 B ══════════════ -->
+<div class="optnote" data-note="b" style="display:none">
+  <b>方案 B · 单列卡片流</b>　<span class="thumb">适合「只想快点了事」的人。</span>
+  没有分栏、没有侧边栏，所有东西一条竖着排下来，滚一遍就看完。
+  按钮大、字大、留白多，不用学习成本，手机上也能用。
+  <br>代价：一次只能专注一件事，文章多了要往下翻。
+</div>
+<div class="panel" data-panel="b">
+  <div class="b-wrap scroller" style="height:calc(100vh - 132px);overflow-y:auto;">
+    <div class="b-hero">
+      <div class="grow">
+        <h2>今天想写点什么？</h2>
+        <div class="sub">写下标题就能开始，正文用 Markdown，排版和封面我帮你搞定。</div>
+      </div>
+      <button class="btn primary" style="padding:9px 18px;font-size:13px;">＋ 新建文章</button>
+    </div>
+
+    <div class="section-title">正在处理的</div>
+    <div class="b-item">
+      <div class="grow">
+        <div class="t">DSH 是什么：一个把 AI 变成能干活的操作台</div>
+        <div class="m">已经进草稿箱 · 11-03 更新 · 10428 字符</div>
+      </div>
+      <span class="badge draft">草稿中</span>
+      <button class="btn primary">发表</button>
+    </div>
+
+    <div class="b-steps">
+      <div class="b-step done"><span class="n">✔</span>写稿</div>
+      <div class="b-step done"><span class="n">✔</span>校验</div>
+      <div class="b-step done"><span class="n">✔</span>封面</div>
+      <div class="b-step done"><span class="n">✔</span>草稿</div>
+      <div class="b-step now"><span class="n">5</span>发表</div>
+    </div>
+    <div class="hint" style="margin-bottom:20px;">
+      <b>还差最后一步。</b>点「发表」就会提交到公众号。提交后是异步审核，大概几十秒。
+    </div>
+
+    <div class="section-title">全部文章 <span class="count">4 篇</span></div>
+    <div class="b-grid">
+      <div class="b-item">
+        <div class="grow"><div class="t">微信小程序自动化：从零到能跑</div><div class="m">11-01 · 还没建草稿</div></div>
+        <span class="badge warn">缺封面</span>
+        <button class="btn">继续写</button>
+      </div>
+      <div class="b-item">
+        <div class="grow"><div class="t">截图对齐的 5 个技巧</div><div class="m">10-28 · 已发布</div></div>
+        <span class="badge ok">已发布</span>
+        <button class="btn">查看</button>
+      </div>
+      <div class="b-item">
+        <div class="grow"><div class="t">（草稿）还没想好标题</div><div class="m">10-25 · 只有大纲</div></div>
+        <span class="badge idle">草稿</span>
+        <button class="btn">继续写</button>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:24px;">公众号状态</div>
+    <div class="b-item">
+      <div class="grow"><div class="t">快乐愿享 · 订阅号</div><div class="m">接口正常 · 草稿箱 2 条 · 今天已用 0 次配额</div></div>
+      <span class="badge ok">已连接</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ 方案 C ══════════════ -->
+<div class="optnote" data-note="c" style="display:none">
+  <b>方案 C · 流水线向导</b>　<span class="thumb">适合「第一次用、不知道下一步干嘛」的人。</span>
+  把「写稿 → 校验 → 封面 → 草稿 → 发表」摊成一条看得见的流水线，
+  哪一步卡住一眼就知道，当前该做的动作就在那一步旁边。
+  <br>代价：步骤是固定的，熟练之后会觉得啰嗦。
+</div>
+<div class="panel" data-panel="c">
+  <div class="c-shell">
+    <div class="c-main scroller">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-size:16px;font-weight:600;margin-bottom:3px;">发表《DSH 是什么…》</div>
+          <div style="font-size:12px;color:var(--label-3);">5 步走完就发出去了，卡在哪一步会告诉你</div>
+        </div>
+        <button class="btn">换个文章</button>
+      </div>
+
+      <div class="stage-list">
+        <div class="stage done">
+          <div class="stage-head"><span class="stage-idx">✔</span><span class="stage-name">写稿</span></div>
+          <div class="stage-desc">Markdown 已保存 · 10428 字符 · 3 个小标题</div>
+        </div>
+
+        <div class="stage done">
+          <div class="stage-head"><span class="stage-idx">✔</span><span class="stage-name">校验</span></div>
+          <div class="stage-desc">标题 24/32 · 摘要 59/120 · 正文 10428/19999 · 全部在限内</div>
+        </div>
+
+        <div class="stage done">
+          <div class="stage-head"><span class="stage-idx">✔</span><span class="stage-name">封面</span></div>
+          <div class="stage-desc">900×383 · 已上传为永久素材</div>
+          <div class="stage-body"><button class="btn">重新生成</button><button class="btn">换主题</button></div>
+        </div>
+
+        <div class="stage done">
+          <div class="stage-head"><span class="stage-idx">✔</span><span class="stage-name">草稿箱</span></div>
+          <div class="stage-desc">草稿 id <span style="font-family:ui-monospace,monospace;">fdQmJt1V…7Uc8G2IN</span></div>
+          <div class="stage-body"><button class="btn">在后台打开</button><button class="btn">更新内容</button></div>
+        </div>
+
+        <div class="stage active">
+          <div class="stage-head"><span class="stage-idx">5</span><span class="stage-name">发表</span></div>
+          <div class="stage-desc">最后一步，点了就提交到公众号</div>
+          <div class="stage-body">
+            <button class="btn primary">发表到公众号</button>
+            <button class="btn">先看预览</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint">
+        <b>注意：</b>如果你的公众号是「个人未认证订阅号」，微信不开放发布接口，
+        最后一步会返回 <code>48001</code>。那种情况只能到后台手动点发表——草稿已经在那边了。
+      </div>
+    </div>
+
+    <div class="c-side scroller">
+      <div class="section-title">运行记录</div>
+      <div class="term scroller" id="term">
+<span class="dim">$</span> wxmp article check
+<span class="ok">✔</span> 没有发现问题
+<span class="dim">  </span>标题 24/32 · 摘要 59/120 · 正文 10428/19999
+
+<span class="dim">$</span> wxmp cover --badge DSH
+<span class="ok">✔</span> 封面已生成（74 KB）
+<span class="dim">  </span>方式: GDI+ 渲染（含中文标题）
+
+<span class="dim">$</span> wxmp draft create
+<span class="ok">✔</span> 草稿已创建: fdQmJt1V…
+<span class="dim">  </span>封面素材: fdQmJt1V…（已上传）
+
+<span class="dim">$</span> wxmp publish submit --yes
+<span class="warn">!</span> 等待你点击「发表」…
+
+<span class="dim">─────────────────────────</span>
+<span class="dim">以上是本次操作的真实输出，</span>
+<span class="dim">每一步都能点开看回放。</span>
+      </div>
+
+      <div class="section-title" style="margin-top:18px;">文章信息</div>
+      <ul class="checklist">
+        <li><span class="ico">📄</span><span class="txt">DSH 是什么：一个把 AI 变成能干活的操作台<small>本地文件 · 11-03 01:19</small></span></li>
+        <li><span class="ico">🏷</span><span class="txt">作者：快乐愿享<small>公众号默认署名</small></span></li>
+        <li><span class="ico">🎨</span><span class="txt">主题：default<small>还有 dark / magazine 可选</small></span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const tabs = [...document.querySelectorAll('.seg button')]
+const panels = [...document.querySelectorAll('.panel')]
+const notes = [...document.querySelectorAll('.optnote')]
+
+function select(opt) {
+  tabs.forEach(b => b.setAttribute('aria-selected', String(b.dataset.opt === opt)))
+  panels.forEach(p => p.classList.toggle('on', p.dataset.panel === opt))
+  notes.forEach(n => { n.style.display = n.dataset.note === opt ? '' : 'none' })
+}
+tabs.forEach(b => b.addEventListener('click', () => select(b.dataset.opt)))
+</script>
+</body>
+</html>

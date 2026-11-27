@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>用 DSH 自动化发公众号 · 预览</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; padding: 24px 16px 64px; background: #ededed;
+         font-family: -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif; }
+  .stage { max-width: 420px; margin: 0 auto; }
+  .meta { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; color: #666; font-size: 12px; }
+  .meta .pill { background: #fff; border-radius: 10px; padding: 2px 8px; color: #07c160; }
+  .phone { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.09); }
+  .cover { width: 100%; display: block; }
+  .body { padding: 20px 18px 28px; }
+  .title { font-size: 22px; line-height: 1.42; color: #1a1a1a; font-weight: bold; margin: 0 0 10px; }
+  .byline { font-size: 13px; color: #999; margin: 0 0 18px; }
+  .digest { background: #f7f7f7; border-radius: 6px; padding: 10px 12px; font-size: 13px;
+            color: #666; line-height: 1.6; margin: 0 0 20px; }
+  .article img { max-width: 100%; }
+  .hint { max-width: 420px; margin: 16px auto 0; font-size: 12px; color: #999; text-align: center; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="meta">
+    <span class="pill">本地预览</span>
+    <span>主题 default</span>
+    <span>用-DSH-自动化发公众号.md</span>
+  </div>
+  <div class="phone">
+    <img class="cover" src="file:///G%3A/AI%20PGRM/DSH/wxmp/.wxmp/articles/cover.png" alt="封面">
+    <div class="body">
+      <div class="title">用 DSH 自动化发公众号</div>
+      <div class="byline">YG</div>
+      <div class="digest">用 DSH 自动化发公众号：一句话说清这篇要讲什么。 为什么现在要聊这个 把背景交代清楚：读者为什么关心、现在的做法有什么问题。 拆开看 第一点：结论 + 一句证据 第二点：结论 + 一句证据 第三点：结论 + 一句证据 引用一段能撑住观…</div>
+      <div class="article"><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">用 DSH 自动化发公众号：一句话说清这篇要讲什么。</p><h2 style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;font-size:19px;font-weight:bold;color:#1a1a1a;margin:26px 0 14px;line-height:1.5;border-left:4px solid #07c160;padding-left:10px;">为什么现在要聊这个</h2><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">把背景交代清楚：读者为什么关心、现在的做法有什么问题。</p><h2 style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;font-size:19px;font-weight:bold;color:#1a1a1a;margin:26px 0 14px;line-height:1.5;border-left:4px solid #07c160;padding-left:10px;">拆开看</h2><ul style="margin:0 0 18px;padding-left:22px;list-style-type:disc;"><li style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 8px;padding-left:2px;"><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">第一点：结论 + 一句证据</p></li><li style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 8px;padding-left:2px;"><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">第二点：结论 + 一句证据</p></li><li style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 8px;padding-left:2px;"><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">第三点：结论 + 一句证据</p></li></ul><div style="background:#f7f7f7;border-left:3px solid #07c160;padding:12px 16px;margin:0 0 18px;color:#3f3f3f;font-size:14px;line-height:1.7;"><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">引用一段能撑住观点的原文或数据。</p></div><h2 style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;font-size:19px;font-weight:bold;color:#1a1a1a;margin:26px 0 14px;line-height:1.5;border-left:4px solid #07c160;padding-left:10px;">怎么做</h2><ol style="margin:0 0 18px;padding-left:22px;"><li style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 8px;padding-left:2px;"><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">先做最小验证，拿到可复现的结果</p></li><li style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 8px;padding-left:2px;"><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">再把流程固化成脚本或清单</p></li><li style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 8px;padding-left:2px;"><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;">最后补上验证与回滚</p></li></ol><p style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;margin:0 0 16px;text-align:justify;"><strong style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.75;letter-spacing:0.4px;color:#3f3f3f;font-weight:bold;">收尾一句</strong>：读者看完应该能直接动手做什么。</p><pre style="background:#f6f8fa;border:1px solid #eaecef;border-radius:6px;padding:14px 16px;margin:0 0 18px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:Consolas,Monaco,Menlo,monospace;color:#333;white-space:pre-wrap;word-break:break-all;"><code style="font-family:inherit;color:inherit;background:none;padding:0;border:none;">// 代码块也可以，微信正文里会渲染成浅色底
+console.log('hello wxmp')</code></pre></div>
+    </div>
+  </div>
+  <div class="hint">这是本地模拟排版，最终效果以微信客户端为准（图片域名会被微信改写）。</div>
+</div>
+</body>
+</html>
